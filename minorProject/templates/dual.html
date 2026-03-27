@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Watch Together – PoPCorn Picker</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tarekraafat/autocomplete.js@7.2.0/dist/css/autoComplete.min.css">
+    <link rel="icon" href="data:,">
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: #181818;
+            font-family: 'Noto Sans JP', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ══════════════════════════════════════
+           SLIDERS — fixed behind everything
+        ══════════════════════════════════════ */
+        .slider-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .slider-bg-bottom {
+            position: fixed;
+            bottom: 40px; /* above footer */
+            left: 0;
+            width: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .slider {
+            width: 100%;
+            height: var(--height);
+            overflow: hidden;
+            mask-image: linear-gradient(to right, transparent, #000 10% 90%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, #000 10% 90%, transparent);
+        }
+
+        .slider .list {
+            display: flex;
+            width: 100%;
+            min-width: calc(var(--width) * var(--quantity));
+            position: relative;
+        }
+
+        .slider .list .item {
+            width: var(--width);
+            height: var(--height);
+            position: absolute;
+            left: 100%;
+            animation: autoRun 10s linear infinite;
+            transition: filter 0.5s;
+            animation-delay: calc( (10s / var(--quantity)) * (var(--position) - 1) ) !important;
+        }
+
+        .slider .list .item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        @keyframes autoRun {
+            from { left: 100%; }
+            to   { left: calc(var(--width) * -1); }
+        }
+
+        .slider[reverse="true"] .list .item {
+            left: calc(var(--width) * -1);
+            animation: reversePlay 10s linear infinite;
+            animation-delay: calc( (10s / var(--quantity)) * (var(--position) - 1) * -1 ) !important;
+        }
+
+        @keyframes reversePlay {
+            from { left: calc(var(--width) * -1); }
+            to   { left: 100%; }
+        }
+
+        /* ══════════════════════════════════════
+           MAIN CONTENT — flows in normal doc
+        ══════════════════════════════════════ */
+        #page-content {
+            position: relative;
+            z-index: 2;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 60px 20px 60px;
+        }
+
+        /* ── frosted glass card ── */
+        .dual-container {
+            width: 700px;
+            max-width: 100%;
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            background: rgba(24, 24, 24, 0.75);
+            border-radius: 30px;
+            padding: 40px 50px 36px;
+            animation: fadeUp 0.7s ease both;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(28px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .dual-container h1 {
+            font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: orange;
+            font-weight: bold;
+            margin-bottom: 6px;
+            text-shadow: #000 0 0 13px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #ccc;
+            font-size: 13px;
+            text-align: center;
+            margin-bottom: 28px;
+            letter-spacing: 0.5px;
+        }
+
+        /* search rows */
+        .search-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .search-label {
+            color: orange;
+            font-size: 13px;
+            font-weight: bold;
+            white-space: nowrap;
+            width: 70px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        /* VS divider */
+        .vs-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 8px 0 20px;
+        }
+        .vs-divider::before,
+        .vs-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255,255,255,0.15);
+        }
+        .vs-divider span {
+            color: orange;
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+
+        /* buttons */
+        .btn-row {
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+            margin-top: 8px;
+        }
+
+        .btn-find {
+            background: transparent;
+            border: 2px solid red;
+            color: white;
+            border-radius: 8px;
+            padding: 10px 36px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+        .btn-find:hover { background: red; color: #fff; }
+
+        .btn-back {
+            background: transparent;
+            border: 2px solid #555;
+            color: #aaa;
+            border-radius: 8px;
+            padding: 10px 28px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: border-color 0.2s, color 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+        }
+        .btn-back:hover { border-color: orange; color: orange; text-decoration: none; }
+
+        /* ══════════════════════════════════════
+           RESULTS SECTION — full width below card
+        ══════════════════════════════════════ */
+        #dualResultsWrapper {
+            width: 100%;
+            max-width: 1200px;
+            margin-top: 60px;
+            padding: 30px 40px 40px;
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            background: rgba(24, 24, 24, 0.75);
+            border-radius: 30px;
+        }
+
+        #dualResultsWrapper h4 {
+            color: #e8e8e8;
+            text-align: center;
+            margin-bottom: 30px;
+            letter-spacing: 3px;
+            font-size: 15px;
+            text-transform: uppercase;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        #movieGrid {
+            display: flex !important;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 24px;
+            padding-bottom: 40px;
+        }
+
+        .movie-card {
+            width: 150px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 14px;
+            overflow: hidden;
+            background: rgba(255,255,255,0.06);
+            transition: transform 0.25s, box-shadow 0.25s;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .movie-card:hover {
+            transform: translateY(-8px) scale(1.04);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.7);
+            border-color: orange;
+        }
+        .movie-card img {
+            width: 100%;
+            height: 210px;
+            object-fit: cover;
+            display: block;
+        }
+        .movie-card p {
+            font-size: 11px;
+            color: #ddd;
+            padding: 8px 8px;
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        /* ── inputs override autoComplete.js ── */
+        #autoComplete,
+        #autoComplete2 {
+            background-color: #ffffff !important;
+            background-image: none !important;
+            border: none !important;
+            border-radius: 8px !important;
+            padding: 10px 16px !important;
+            font-size: 15px !important;
+            color: #181818 !important;
+            width: 400px !important;
+            height: auto !important;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25) !important;
+            outline: none !important;
+            transition: box-shadow 0.2s !important;
+            caret-color: #181818 !important;
+        }
+        #autoComplete:hover, #autoComplete2:hover {
+            background-image: none !important;
+            background-color: #ffffff !important;
+            width: 400px !important;
+            height: auto !important;
+            color: #181818 !important;
+            padding: 10px 16px !important;
+        }
+        #autoComplete:focus, #autoComplete2:focus {
+            background-image: none !important;
+            background-color: #ffffff !important;
+            width: 400px !important;
+            height: auto !important;
+            color: #181818 !important;
+            padding: 10px 16px !important;
+            box-shadow: 0 0 0 3px rgba(255,165,0,0.5) !important;
+        }
+        #autoComplete::placeholder, #autoComplete2::placeholder {
+            color: #888 !important;
+            padding: 0 !important;
+            font-size: 15px !important;
+        }
+
+        /* autocomplete dropdown */
+        #food_list, #food_list2 {
+            background: #fff;
+            color: #181818;
+            border-radius: 8px;
+            z-index: 999;
+        }
+
+        /* footer */
+        .footer {
+            background-color: orange;
+            color: black;
+            text-align: center;
+            width: 100%;
+            padding: 10px 0;
+            position: relative;
+            z-index: 3;
+        }
+
+        @media (max-width: 750px) {
+            .dual-container { padding: 28px 20px; }
+            #autoComplete, #autoComplete2 { width: 100% !important; }
+            .search-label { display: none; }
+            .movie-card { width: 130px; }
+            .movie-card img { height: 180px; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- SLIDER TOP (fixed background) -->
+    <div class="slider-bg">
+        <div class="slider" style="--width:350px; --height:220px; --quantity:10;">
+            <div class="list">
+                <div class="item" style="--position:1"><img src="/static/img1.jpg"    alt=""></div>
+                <div class="item" style="--position:2"><img src="/static/img2.jpg"    alt=""></div>
+                <div class="item" style="--position:3"><img src="/static/img3.jpg"    alt=""></div>
+                <div class="item" style="--position:4"><img src="/static/img4.jpeg"   alt=""></div>
+                <div class="item" style="--position:5"><img src="/static/img5.jpeg"   alt=""></div>
+                <div class="item" style="--position:6"><img src="/static/img6.jpeg"   alt=""></div>
+                <div class="item" style="--position:7"><img src="/static/img7.jpeg"   alt=""></div>
+                <div class="item" style="--position:8"><img src="/static/img8.jpeg"   alt=""></div>
+                <div class="item" style="--position:9"><img src="/static/img9.jpeg"   alt=""></div>
+                <div class="item" style="--position:10"><img src="/static/img10.jpeg" alt=""></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDER BOTTOM (fixed background) -->
+    <div class="slider-bg-bottom">
+        <div class="slider" reverse="true" style="--width:350px; --height:220px; --quantity:9;">
+            <div class="list">
+                <div class="item" style="--position:1"><img src="/static/img6.jpeg"   alt=""></div>
+                <div class="item" style="--position:2"><img src="/static/img7.jpeg"   alt=""></div>
+                <div class="item" style="--position:3"><img src="/static/img8.jpeg"   alt=""></div>
+                <div class="item" style="--position:4"><img src="/static/img9.jpeg"   alt=""></div>
+                <div class="item" style="--position:5"><img src="/static/img10.jpeg"  alt=""></div>
+                <div class="item" style="--position:6"><img src="/static/img1.jpg"    alt=""></div>
+                <div class="item" style="--position:7"><img src="/static/img2.jpg"    alt=""></div>
+                <div class="item" style="--position:8"><img src="/static/img3.jpg"    alt=""></div>
+                <div class="item" style="--position:9"><img src="/static/img4.jpeg"   alt=""></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="page-content">
+        <div class="dual-container">
+            <h1>PoPCorn Picker</h1>
+            <p class="subtitle">WATCH TOGETHER 🎬 &nbsp;·&nbsp; Find your perfect shared movie</p>
+
+            <div class="search-row">
+                <span class="search-label">Movie 1</span>
+                <input type="text" name="movie" class="movie form-control" id="autoComplete" autocomplete="off" placeholder="Enter first movie name" />
+            </div>
+
+            <div class="vs-divider"><span>VS</span></div>
+
+            <div class="search-row">
+                <span class="search-label">Movie 2</span>
+                <input type="text" name="movie" class="movie form-control" id="autoComplete2" autocomplete="off" placeholder="Enter second movie name" />
+            </div>
+
+            <div class="btn-row">
+                <a href="/" class="btn-back">← Back</a>
+                <button id="dualBtn" class="btn-find">Find Movie</button>
+            </div>
+
+        </div>
+
+        <!-- Results — full width, outside the card -->
+        <div id="dualResultsWrapper" class="box"></div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">© 2026, Made By Sanjana Nakum</div>
+
+<script>
+    var films = {{suggestions|tojson}};
+</script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tarekraafat/autocomplete.js@7.2.0/dist/js/autoComplete.min.js"></script>
+<script src="/static/autocomplete.js"></script>
+<script src="/static/recommend.js"></script>
+
+</body>
+</html>
