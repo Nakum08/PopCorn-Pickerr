@@ -3,6 +3,7 @@ import pandas as pd
 from flask import Flask, render_template, request, jsonify
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+import bs4 as bs
 import pickle
 import requests as req
 from concurrent.futures import ThreadPoolExecutor
@@ -98,30 +99,20 @@ def tmdb_get(path, extra=None):
             pass
     return {}
 
-def fetch_tmdb_data(movie_title):
-    """
-    Single TMDB search → gets movie_id → fetches cast, bios, AND reviews in parallel.
-    Returns (casts, cast_details, reviews).
-    If TMDB is blocked (India without VPN), returns empty dicts instantly.
-    """
+def fetch_cast_and_bios(movie_title):
+    """Try TMDB for cast — returns empty instantly if blocked (India)."""
     try:
-        d       = tmdb_get('/search/movie', {'query': movie_title})
+        d = tmdb_get('/search/movie', {'query': movie_title})
         results = d.get('results', [])
         if not results:
-            return {}, {}, {}
+            return {}, {}
+        movie_id  = results[0]['id']
+        credits   = tmdb_get(f'/movie/{movie_id}/credits')
+        cast_list = credits.get('cast', [])[:10]
+        if not cast_list:
+            return {}, {}
 
-        movie_id = results[0]['id']
-
-        # Fire credits + reviews in parallel — single TMDB search, two endpoints
-        with ThreadPoolExecutor(max_workers=2) as ex:
-            f_credits = ex.submit(tmdb_get, f'/movie/{movie_id}/credits')
-            f_reviews = ex.submit(tmdb_get, f'/movie/{movie_id}/reviews')
-            credits_data = f_credits.result()
-            reviews_data = f_reviews.result()
-
-        cast_list = credits_data.get('cast', [])[:10]
-
-        # Fetch all cast bios in parallel
+        # Fetch all bios in parallel with tight timeout
         def get_bio(person_id):
             p = tmdb_get(f'/person/{person_id}')
             bday = p.get('birthday') or ''
@@ -131,13 +122,10 @@ def fetch_tmdb_data(movie_title):
                 bday = 'N/A'
             return {'bday': bday, 'bio': p.get('biography',''), 'place': p.get('place_of_birth','N/A') or 'N/A'}
 
-        bios = {}
-        if cast_list:
-            with ThreadPoolExecutor(max_workers=10) as ex:
-                bio_futures = {ex.submit(get_bio, c['id']): i for i, c in enumerate(cast_list)}
-                bios = {idx: f.result() for f, idx in bio_futures.items()}
+        with ThreadPoolExecutor(max_workers=10) as ex:
+            bio_futures = {ex.submit(get_bio, c['id']): i for i, c in enumerate(cast_list)}
+            bios = {idx: f.result() for f, idx in bio_futures.items()}
 
-        # Build cast dicts
         casts, cast_details = {}, {}
         for i, c in enumerate(cast_list):
             name    = c['name']
@@ -147,30 +135,72 @@ def fetch_tmdb_data(movie_title):
             casts[name]        = [str(c['id']), char, profile]
             cast_details[name] = [str(c['id']), profile, b.get('bday','N/A'), b.get('place','N/A'), b.get('bio','')]
 
-        # Build reviews dict — TMDB reviews API (no scraping, no Cloudflare)
+        return casts, cast_details
+    except Exception:
+        return {}, {}
+
+# ── IMDB reviews ──────────────────────────────────────────────
+def scrape_reviews(imdb_id):
+    if not imdb_id:
+        return {}
+    try:
+        url   = f'https://www.imdb.com/title/{imdb_id}/reviews'
+        hdrs  = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+        }
+        fetch = _scraper.get if USE_CLOUDSCRAPER else req.get
+        r     = fetch(url, headers=hdrs, timeout=4)
+        if r.status_code != 200:
+            return {}
+        soup   = bs.BeautifulSoup(r.content, 'lxml')
+        blocks = (
+            soup.find_all("div", {"class": "text show-more__control"})
+            or soup.find_all("div", {"class": "ipc-html-content-inner-div"})
+            or soup.find_all("div", {"data-testid": "review-overflow"})
+        )
         reviews = {}
-        for r in reviews_data.get('results', [])[:10]:
-            text = r.get('content', '').strip()
+        for b in blocks:
+            text = b.get_text(separator=' ', strip=True)
             if len(text) > 30:
                 pred = clf.predict(vectorizer.transform(np.array([text])))
                 reviews[text] = 'Good' if pred else 'Bad'
-        print(f"[Reviews] {len(reviews)} from TMDB")
-
-        return casts, cast_details, reviews
-
+        print(f"[Reviews] {len(reviews)} scraped")
+        return reviews
     except Exception as e:
-        print(f"[TMDB fetch] failed: {e}")
-        return {}, {}, {}
+        print(f"[Reviews] failed: {e}")
+        return {}
 
 # ── ML recommendations ────────────────────────────────────────
+def _franchise_key(title):
+    """Extract franchise identifier — first meaningful word, ignoring articles."""
+    stop = {'the','a','an','of','and','in','to','is'}
+    words = [w for w in title.lower().split() if w not in stop]
+    return words[0] if words else title.lower().split()[0]
+
 def rcmd(m):
     data, sim = get_similarity()
     m = m.lower()
     if m not in data['movie_title'].unique():
         return None
     i   = data.loc[data['movie_title'] == m].index[0]
-    lst = sorted(enumerate(sim[i]), key=lambda x: x[1], reverse=True)[1:11]
-    return [data['movie_title'][a] for a, _ in lst]
+    # Get top 50 candidates then filter franchises
+    lst = sorted(enumerate(sim[i]), key=lambda x: x[1], reverse=True)[1:51]
+
+    result, used_franchises = [], set()
+    input_franchise = _franchise_key(m)
+
+    for idx, score in lst:
+        name = data['movie_title'][idx]
+        fk   = _franchise_key(name)
+        # Skip same franchise as input movie or already seen franchise
+        if fk == input_franchise or fk in used_franchises:
+            continue
+        used_franchises.add(fk)
+        result.append(name)
+        if len(result) == 10:
+            break
+    return result
 
 def dual_rcmd(m1, m2):
     data, sim = get_similarity()
@@ -181,59 +211,71 @@ def dual_rcmd(m1, m2):
     s1, s2   = sim[i1], sim[i2]
     combined = (s1 + s2) / 2
     lst = sorted(enumerate(combined), key=lambda x: (-x[1], abs(s1[x[0]]-s2[x[0]])))
-    result, used = [], set()
+
+    result, used_franchises = [], set()
+    fk1, fk2 = _franchise_key(m1), _franchise_key(m2)
+
     for idx, _ in lst:
         name = data.iloc[idx].movie_title.lower()
-        if name in [m1, m2]: continue
-        kw = name.split()[0]
-        if kw in m1 or kw in m2 or kw in used: continue
-        used.add(kw); result.append(name)
-        if len(result) == 10: break
+        if name in [m1, m2]:
+            continue
+        fk = _franchise_key(name)
+        # Skip same franchise as either input movie or already seen
+        if fk in (fk1, fk2) or fk in used_franchises:
+            continue
+        used_franchises.add(fk)
+        result.append(name)
+        if len(result) == 10:
+            break
     return result
 
-# ── Core builder ──────────────────────────────────────────────
+# ── Core builder — CSV-first, instant response ─────────────────
 def build_movie_data(title):
     data, _ = get_similarity()
 
-    # Step 1: find the movie title in CSV (lowercase match)
-    title_lower = title.lower().strip()
+    # Step 1: find movie in CSV (instant, no network)
+    title_lower   = title.lower().strip()
     matched_title = None
 
-    # Exact match first
     if title_lower in data['movie_title'].values:
         matched_title = title_lower
     else:
-        # Partial / fuzzy match — find closest title in CSV
-        matches = data[data['movie_title'].str.contains(title_lower, case=False, na=False)]
+        matches = data[data['movie_title'].str.contains(
+            re.escape(title_lower), case=False, na=False)]
         if not matches.empty:
             matched_title = matches.iloc[0]['movie_title']
 
-    # Step 2: get recommendations from CSV (works 100% offline)
-    rec_list = []
-    if matched_title:
-        rec_list = rcmd(matched_title) or []
-
-    # Step 3: try OMDb for poster/details — gracefully degrade if it fails
-    display_title = matched_title.title() if matched_title else title
-    movie_data = omdb_search(display_title) or omdb_search(title) or {}
-
-    poster_url  = movie_data.get('Poster', PLACEHOLDER)
-    if not poster_url or poster_url == 'N/A':
-        poster_url = PLACEHOLDER
-
-    imdb_id = movie_data.get('imdbID', '')
-
-    # If OMDb failed entirely but we found the movie in CSV, still proceed
-    if not movie_data and not matched_title:
+    if not matched_title:
         return None
 
-    # Step 4: fetch rec posters + TMDB data (cast, bios, reviews) in parallel
-    with ThreadPoolExecutor(max_workers=20) as ex:
-        f_posters  = {ex.submit(fetch_rec_poster, m): m for m in rec_list}
-        f_tmdb     = ex.submit(fetch_tmdb_data, display_title)
+    # Step 2: recommendations from similarity matrix (instant, no network)
+    rec_list = rcmd(matched_title) or []
 
-        rec_posters_map             = {movie: fut.result() for fut, movie in f_posters.items()}
-        casts, cast_details, movie_reviews = f_tmdb.result()
+    # Step 3: OMDb for poster/details (fast, works in India)
+    display_title = matched_title.title()
+    movie_data    = omdb_search(display_title) or omdb_search(title) or {}
+
+    poster_url = movie_data.get('Poster', PLACEHOLDER)
+    if not poster_url or poster_url == 'N/A':
+        poster_url = PLACEHOLDER
+    imdb_id = movie_data.get('imdbID', '')
+
+    # Step 4: rec posters via OMDb in parallel (fast)
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        f_posters = {ex.submit(fetch_rec_poster, m): m for m in rec_list}
+        rec_posters_map = {movie: fut.result() for fut, movie in f_posters.items()}
+
+    # Step 5: cast + reviews — skip if TMDB blocked, keep reviews attempt short
+    casts, cast_details = {}, {}
+    movie_reviews       = {}
+    try:
+        with ThreadPoolExecutor(max_workers=2) as ex:
+            f_cast    = ex.submit(fetch_cast_and_bios, display_title)
+            f_reviews = ex.submit(scrape_reviews, imdb_id)
+            casts, cast_details = f_cast.result(timeout=6)
+            movie_reviews       = f_reviews.result(timeout=6)
+    except Exception:
+        pass
 
     movie_cards = {rec_posters_map.get(m, PLACEHOLDER): m for m in rec_list}
 

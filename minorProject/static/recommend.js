@@ -135,3 +135,5 @@ document.addEventListener('DOMContentLoaded', function() {
   var movie = new URLSearchParams(window.location.search).get('movie');
   if (movie) load_details(movie);
 });
+
+

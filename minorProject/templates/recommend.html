@@ -236,14 +236,70 @@
 			font-weight: bold;
 		}
 
-		/* ── modals ── */
-		.modal       { z-index: 9100 !important; }
-		.modal-backdrop { z-index: 9050 !important; }
-		.modal-header { background-color: orange; }
-		.modal-header h5, .modal-header .close span { color: white; }
-		.modal-body { display: flex; gap: 20px; }
-		.profile-pic { border-radius: 10px; flex-shrink: 0; }
-		.modal-body p { color: #333; margin-bottom: 10px; font-size: 14px; line-height: 1.6; }
+		/* ── modals — dark frosted glass ── */
+		.modal { z-index: 9100 !important; }
+		.modal-backdrop { z-index: 9050 !important; background: rgba(0,0,0,0.8) !important; }
+		.modal-backdrop.show { opacity: 1 !important; }
+
+		.modal-content {
+			background: rgba(18,18,18,0.95) !important;
+			backdrop-filter: blur(40px) !important;
+			-webkit-backdrop-filter: blur(40px) !important;
+			border: 1px solid rgba(255,165,0,0.25) !important;
+			border-radius: 24px !important;
+			overflow: hidden;
+			box-shadow: 0 24px 80px rgba(0,0,0,0.8) !important;
+		}
+
+		.modal-header {
+			background: linear-gradient(135deg, rgba(255,140,0,0.12), rgba(255,60,0,0.08)) !important;
+			border-bottom: 1px solid rgba(255,165,0,0.2) !important;
+			padding: 20px 28px !important;
+		}
+		.modal-title { color: orange !important; font-size: 18px !important; font-weight: bold !important; letter-spacing: 0.5px; text-shadow: 0 0 20px rgba(255,165,0,0.4); }
+		.modal-header .close { color: rgba(255,255,255,0.5) !important; text-shadow: none !important; opacity: 1 !important; transition: color 0.2s; }
+		.modal-header .close:hover { color: orange !important; }
+		.modal-header .close span { color: inherit !important; }
+
+		.modal-body {
+			display: flex;
+			gap: 28px;
+			padding: 28px !important;
+			background: transparent !important;
+		}
+
+		.profile-pic {
+			border-radius: 16px !important;
+			flex-shrink: 0;
+			box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 0 2px rgba(255,165,0,0.2);
+			object-fit: cover;
+		}
+
+		.cast-bio-wrap {
+			display: flex; flex-direction: column; gap: 14px;
+			overflow-y: auto; max-height: 420px;
+		}
+		.cast-bio-wrap::-webkit-scrollbar { width: 4px; }
+		.cast-bio-wrap::-webkit-scrollbar-track { background: transparent; }
+		.cast-bio-wrap::-webkit-scrollbar-thumb { background: rgba(255,165,0,0.4); border-radius: 4px; }
+
+		.cast-info-row { padding-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+		.cast-info-row:last-child { border-bottom: none; padding-bottom: 0; }
+		.cast-info-label { color: orange; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; font-weight: bold; margin-bottom: 4px; }
+		.cast-info-value { color: #ccc; font-size: 13px; line-height: 1.75; }
+
+		.modal-footer {
+			background: transparent !important;
+			border-top: 1px solid rgba(255,255,255,0.06) !important;
+			padding: 16px 28px !important;
+		}
+		.modal-footer .btn-secondary {
+			background: transparent !important;
+			border: 1.5px solid rgba(255,255,255,0.2) !important;
+			color: #aaa !important; border-radius: 8px !important; padding: 8px 24px !important;
+			transition: border-color 0.2s, color 0.2s !important;
+		}
+		.modal-footer .btn-secondary:hover { border-color: orange !important; color: orange !important; }
 
 		.unreleased {
 			text-align: center;
@@ -259,7 +315,8 @@
 		}
 		@media only screen and (max-width: 991px) {
 			.modal-body { flex-direction: column; }
-			.profile-pic { margin: 0 auto 16px; display: block; }
+			.profile-pic { margin: 0 auto 16px; display: block; width: 160px !important; height: 240px !important; }
+			.cast-bio-wrap { max-height: 300px; }
 		}
 		@media only screen and (min-width: 651px) {
 			.poster-sm { display: none; }
@@ -326,11 +383,20 @@
 					</button>
 				</div>
 				<div class="modal-body">
-					<img class="profile-pic" src="{{details[1]}}" alt="{{name}}" style="width:220px; height:360px;" />
-					<div>
-						<p><strong>Birthday:</strong> {{details[2]}}</p>
-						<p><strong>Place of Birth:</strong> {{details[3]}}</p>
-						<p><strong>Biography:</strong><br/><br/>{{details[4]}}</p>
+					<img class="profile-pic" src="{{details[1]}}" alt="{{name}}" style="width:200px; height:300px;" />
+					<div class="cast-bio-wrap">
+						<div class="cast-info-row">
+							<div class="cast-info-label">Birthday</div>
+							<div class="cast-info-value">{{details[2]}}</div>
+						</div>
+						<div class="cast-info-row">
+							<div class="cast-info-label">Place of Birth</div>
+							<div class="cast-info-value">{{details[3]}}</div>
+						</div>
+						<div class="cast-info-row">
+							<div class="cast-info-label">Biography</div>
+							<div class="cast-info-value">{{details[4]}}</div>
+						</div>
 					</div>
 				</div>
 				<div class="modal-footer">
@@ -389,7 +455,9 @@
 		<div class="unreleased">🎬 This movie hasn't released yet or reviews are unavailable.</div>
 		{% endif %}
 	</div>
-
+	<div class="trailer">
+		
+	</div>
 	<!-- RECOMMENDED MOVIES -->
 	{% if movie_cards|length > 1 %}
 	<div class="glass-section">
