@@ -1,0 +1,597 @@
+/* ==========================================================
+   home.css — Styles for the PoPCorn Picker home page
+   This covers the background carousel, search card, buttons,
+   loaders, and the Watch Together transition overlay.
+   ========================================================== */
+
+
+/* ----------------------------------------------------------
+   GLOBAL RESET
+   Just clear out margins/padding and make box-sizing sane
+   so nothing bleeds outside its container unexpectedly.
+   ---------------------------------------------------------- */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+
+/* ----------------------------------------------------------
+   BODY
+   Dark background, the font we chose, and flex column so
+   the footer always sticks to the bottom.
+   ---------------------------------------------------------- */
+body {
+  background-color: #181818;
+  font-family: 'Noto Sans JP', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+
+/* ----------------------------------------------------------
+   BACKGROUND CAROUSEL WRAPPERS
+   Fixed so they stay put while the user scrolls. z-index -1
+   keeps them behind all real content. pointer-events: none
+   means clicks pass straight through to the page below.
+   ---------------------------------------------------------- */
+.slider-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.slider-bg-bottom {
+  position: fixed;
+  bottom: 40px; /* sit just above the footer */
+  left: 0;
+  width: 100%;
+  z-index: -1;
+  pointer-events: none;
+}
+
+
+/* ----------------------------------------------------------
+   SLIDER TRACK
+   The mask fades images in/out on the left and right edges
+   so it doesn't look like a hard cut — nice soft vignette.
+   ---------------------------------------------------------- */
+.slider {
+  width: 100%;
+  height: var(--height);
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, #000 10% 90%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 10% 90%, transparent);
+}
+
+
+/* ----------------------------------------------------------
+   SLIDER LIST — slides as one unit
+   All images sit side by side in a flex row. We translate
+   the whole list instead of animating each item individually,
+   so every image is visible on screen from the very first frame.
+   The list is duplicated in HTML to make the loop seamless.
+   ---------------------------------------------------------- */
+.slider .list {
+  display: flex;
+  gap: 12px;
+  width: max-content;
+  animation: slideLeft 30s linear infinite;
+}
+
+.slider[reverse="true"] .list {
+  animation: slideRight 28s linear infinite;
+}
+
+
+/* ----------------------------------------------------------
+   INDIVIDUAL POSTER TILES inside the slider
+   ---------------------------------------------------------- */
+.slider .list .item {
+  width: var(--width);
+  height: var(--height);
+  flex-shrink: 0;
+}
+
+.slider .list .item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+  /* Tell the browser to decode these images immediately,
+     not lazily — that's what was causing the "late" appearance */
+  content-visibility: visible;
+}
+
+
+/* ----------------------------------------------------------
+   SLIDER KEYFRAMES
+   slideLeft moves forward (top carousel),
+   slideRight moves backward (bottom carousel).
+   -50% works because the HTML list is exactly doubled.
+   ---------------------------------------------------------- */
+@keyframes slideLeft {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes slideRight {
+  0%   { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
+
+/* ----------------------------------------------------------
+   PAGE CONTENT WRAPPER
+   Sits on top of the fixed background. Centers everything
+   and gives breathing room top and bottom.
+   ---------------------------------------------------------- */
+#page-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 20px 60px;
+}
+
+
+/* ----------------------------------------------------------
+   SEARCH CARD — the frosted glass box in the middle
+   backdrop-filter creates the blur effect on the background
+   images showing through. fadeUp animation makes it slide in
+   nicely when the page first loads.
+   ---------------------------------------------------------- */
+.search-card {
+  width: 700px;
+  max-width: 100%;
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  background: rgba(24, 24, 24, 0.75);
+  border-radius: 30px;
+  padding: 40px 50px 36px;
+  animation: fadeUp 0.7s ease both;
+  text-align: center;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.search-card h1 {
+  font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color: orange;
+  font-weight: bold;
+  margin-bottom: 6px;
+  text-shadow: #000 0 0 13px;
+}
+
+.subtitle {
+  color: #ccc;
+  font-size: 13px;
+  margin-bottom: 28px;
+  letter-spacing: 0.5px;
+}
+
+
+/* ----------------------------------------------------------
+   SEARCH INPUT
+   We override autoComplete.js's own styles heavily with
+   !important because that library injects inline styles
+   that would otherwise win the specificity war.
+   ---------------------------------------------------------- */
+#autoComplete {
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 10px 16px !important;
+  font-size: 15px !important;
+  color: #181818 !important;
+  width: 80% !important;
+  height: auto !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.25) !important;
+  outline: none !important;
+  transition: box-shadow 0.2s !important;
+  caret-color: #181818 !important;
+}
+
+#autoComplete:hover {
+  background-image: none !important;
+  background-color: #ffffff !important;
+  width: 80% !important;
+  height: auto !important;
+  color: #181818 !important;
+  padding: 10px 16px !important;
+}
+
+#autoComplete:focus {
+  background-image: none !important;
+  background-color: #ffffff !important;
+  width: 80% !important;
+  height: auto !important;
+  color: #181818 !important;
+  padding: 10px 16px !important;
+  /* Orange glow ring when the user is typing */
+  box-shadow: 0 0 0 3px rgba(255,165,0,0.5) !important;
+}
+
+#autoComplete::placeholder {
+  color: #888 !important;
+  font-size: 15px !important;
+}
+
+
+/* ----------------------------------------------------------
+   AUTOCOMPLETE DROPDOWN
+   Keep it white so the dark text is readable.
+   ---------------------------------------------------------- */
+#food_list {
+  background: #fff;
+  color: #181818;
+  border-radius: 8px;
+  z-index: 999;
+}
+
+
+/* ----------------------------------------------------------
+   BUTTON ROW — sits below the search input
+   ---------------------------------------------------------- */
+.btn-row {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+/* Search button — red outline, fills red on hover */
+.btn-search {
+  background: transparent;
+  border: 2px solid red;
+  color: white;
+  border-radius: 8px;
+  padding: 10px 36px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.btn-search:hover    { background: red; color: #fff; }
+.btn-search:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Watch Together button — orange outline, fills orange on hover */
+.btn-together {
+  background: transparent;
+  border: 2px solid orange;
+  color: orange;
+  border-radius: 8px;
+  padding: 10px 28px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-together:hover { background: orange; color: #181818; text-decoration: none; }
+
+
+/* ----------------------------------------------------------
+   FAIL MESSAGE — shown when we can't find the movie
+   Same frosted glass look as the search card.
+   ---------------------------------------------------------- */
+.fail {
+  display: none;
+  color: white;
+  text-align: center;
+  margin-top: 30px;
+  width: 100%;
+  max-width: 1200px;
+  padding: 30px 40px;
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  background: rgba(24, 24, 24, 0.75);
+  border-radius: 30px;
+}
+
+
+/* ----------------------------------------------------------
+   RESULTS CONTAINER — where recommend.html gets injected
+   Hides itself automatically when empty so there's no
+   blank frosted box sitting around.
+   ---------------------------------------------------------- */
+.results {
+  width: 100%;
+  max-width: 1200px;
+  margin-top: 60px;
+  padding: 30px 40px 40px;
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  background: rgba(24, 24, 24, 0.75);
+  border-radius: 30px;
+}
+
+.results:empty { display: none; }
+
+
+/* ----------------------------------------------------------
+   FOOTER — orange bar at the very bottom
+   ---------------------------------------------------------- */
+.footer {
+  background-color: orange;
+  color: black;
+  text-align: center;
+  width: 100%;
+  padding: 10px 0;
+}
+
+
+/* ----------------------------------------------------------
+   MODALS — need to sit above everything, including the loader
+   ---------------------------------------------------------- */
+.modal         { z-index: 9100 !important; }
+.modal-backdrop { z-index: 9050 !important; }
+
+
+/* ==========================================================
+   POPCORN SEARCH LOADER
+   Full-screen overlay that appears while Flask is fetching.
+   The little popcorn box has bouncing kernels above it.
+   ========================================================== */
+
+#loader {
+  display: none; /* shown by adding class="active" via JS */
+  position: fixed;
+  z-index: 9000;
+  left: 0; top: 0;
+  width: 100%; height: 100%;
+  background: rgba(18, 18, 18, 0.96);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+
+#loader.active { display: flex; }
+
+/* The red popcorn bucket */
+.popcorn-box {
+  width: 80px;
+  height: 70px;
+  background: linear-gradient(135deg, #e53935, #b71c1c);
+  border-radius: 0 0 18px 18px;
+  position: relative;
+  box-shadow: 0 6px 24px rgba(229,57,53,0.4);
+}
+
+/* Darker rim at the top of the bucket */
+.popcorn-box::before {
+  content: '';
+  position: absolute;
+  top: -10px; left: -6px;
+  width: calc(100% + 12px);
+  height: 22px;
+  background: #c62828;
+  border-radius: 6px;
+}
+
+/* Stripe pattern on the bucket body */
+.popcorn-box::after {
+  content: '';
+  position: absolute;
+  top: 12px; left: 0; right: 0;
+  height: 100%;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent, transparent 10px,
+    rgba(255,255,255,0.12) 10px, rgba(255,255,255,0.12) 20px
+  );
+  border-radius: 0 0 18px 18px;
+}
+
+/* Kernels float above the bucket */
+.kernels {
+  position: absolute;
+  top: -52px; left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+}
+
+.kernel {
+  width: 18px; height: 18px;
+  border-radius: 50% 50% 40% 60%;
+  animation: popKernel 1.1s ease-in-out infinite;
+}
+
+/* Each kernel gets a slightly different shape and staggered delay
+   so they don't all bounce at exactly the same time */
+.kernel:nth-child(1) { background: #fff9c4; animation-delay: 0s;    border-radius: 60% 40% 50% 50%; }
+.kernel:nth-child(2) { background: #fff3e0; animation-delay: 0.18s; border-radius: 50% 60% 40% 50%; }
+.kernel:nth-child(3) { background: #fff9c4; animation-delay: 0.36s; border-radius: 40% 50% 60% 40%; }
+.kernel:nth-child(4) { background: #fff3e0; animation-delay: 0.54s; border-radius: 55% 45% 50% 50%; }
+.kernel:nth-child(5) { background: #fff9c4; animation-delay: 0.72s; border-radius: 45% 55% 40% 60%; }
+
+@keyframes popKernel {
+  0%   { transform: translateY(0)     scale(1);   opacity: 1; }
+  40%  { transform: translateY(-34px) scale(1.2); opacity: 1; }
+  70%  { transform: translateY(-28px) scale(1.1); opacity: 0.9; }
+  100% { transform: translateY(0)     scale(1);   opacity: 1; }
+}
+
+/* "Finding your movie…" text below the bucket */
+.loader-text {
+  color: #fff;
+  font-size: 15px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1; }
+}
+
+
+/* ==========================================================
+   WATCH TOGETHER TRANSITION OVERLAY
+   Plays when the user clicks "Watch Together" — a clapperboard
+   snaps and bouncing dots appear before navigating to /dual.
+   ========================================================== */
+
+#watchTogetherOverlay {
+  display: none; /* activated via .active class */
+  position: fixed;
+  z-index: 9500;
+  left: 0; top: 0;
+  width: 100%; height: 100%;
+  background: #181818;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+}
+
+#watchTogetherOverlay.active { display: flex; }
+
+/* The clapperboard body */
+.clapperboard {
+  width: 100px;
+  height: 80px;
+  background: #1a1a1a;
+  border: 3px solid #fff;
+  border-radius: 6px;
+  position: relative;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+
+/* The snapping top part of the clapperboard */
+.clapper-top {
+  position: absolute;
+  top: -28px; left: -3px;
+  width: calc(100% + 6px);
+  height: 30px;
+  background: #222;
+  border: 3px solid #fff;
+  border-radius: 6px 6px 0 0;
+  overflow: hidden;
+  transform-origin: left top;
+  animation: clapperSnap 1.2s ease-in-out infinite;
+}
+
+.clapper-stripes {
+  display: flex;
+  height: 100%;
+}
+
+/* Black-and-white diagonal stripes pattern on the clapper */
+.clapper-stripes span {
+  flex: 1;
+  background: repeating-linear-gradient(
+    90deg,
+    #fff 0px, #fff 6px,
+    #111 6px, #111 12px
+  );
+}
+
+/* Placeholder lines inside the clapperboard body */
+.clapper-body-lines {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.clapper-body-lines div {
+  height: 4px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 2px;
+}
+
+/* The snap animation — rotates down then springs back */
+@keyframes clapperSnap {
+  0%   { transform: rotate(0deg); }
+  20%  { transform: rotate(-35deg); }
+  35%  { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
+}
+
+/* Row of orange bouncing dots below the clapperboard */
+.film-dots { display: flex; gap: 10px; }
+
+.film-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: orange;
+  animation: filmDot 1s ease-in-out infinite;
+}
+
+.film-dot:nth-child(1) { animation-delay: 0s; }
+.film-dot:nth-child(2) { animation-delay: 0.15s; }
+.film-dot:nth-child(3) { animation-delay: 0.30s; }
+.film-dot:nth-child(4) { animation-delay: 0.45s; }
+.film-dot:nth-child(5) { animation-delay: 0.60s; }
+
+@keyframes filmDot {
+  0%, 100% { transform: scaleY(1);   opacity: 0.3; }
+  50%       { transform: scaleY(1.8); opacity: 1; }
+}
+
+/* "Watch Together 🎬" label */
+.overlay-text {
+  color: orange;
+  font-size: 16px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+
+/* ==========================================================
+   PAGE EXIT ZOOM ANIMATION
+   Plays when navigating away — the whole page zooms in and
+   fades to black, making the transition feel cinematic.
+   ========================================================== */
+
+body.zoom-exit {
+  animation: zoomExitBody 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes zoomExitBody {
+  0%   { transform: scale(1);    filter: brightness(1); }
+  60%  { transform: scale(1.08); filter: brightness(1.3); }
+  100% { transform: scale(1.25); filter: brightness(0) blur(6px); opacity: 0; }
+}
+
+/* Quick punch-zoom on search/card click (stays on page, snaps back) */
+@keyframes zoomPunch {
+  0%   { transform: scale(1);    filter: brightness(1); }
+  50%  { transform: scale(1.06); filter: brightness(1.4); }
+  100% { transform: scale(1);    filter: brightness(1); }
+}
+
+
+/* ==========================================================
+   RESPONSIVE — mobile adjustments
+   ========================================================== */
+
+@media (max-width: 750px) {
+  /* The search card needs less padding on small screens */
+  .search-card { padding: 28px 20px; }
+
+  /* Input should go full width on mobile */
+  #autoComplete,
+  #autoComplete:hover,
+  #autoComplete:focus { width: 100% !important; }
+}

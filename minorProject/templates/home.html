@@ -1,421 +1,26 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <title>PoPCorn Picker</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
+  <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap" rel="stylesheet">
+
+  <!-- Third-party CSS libraries -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tarekraafat/autocomplete.js@7.2.0/dist/css/autoComplete.min.css">
+
+  <!-- Our own stylesheet for this page -->
+  <link rel="stylesheet" href="/static/home.css">
+
+  <!-- Blank favicon so the browser doesn't throw a 404 for favicon.ico -->
   <link rel="icon" href="data:,">
 
-  <script type="text/javascript"> var films = {{suggestions|tojson}}; </script>
-
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      background-color: #181818;
-      font-family: 'Noto Sans JP', sans-serif;
-      min-height: 100vh;
-      overflow-x: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* sliders — fixed, behind everything */
-    .slider-bg {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%;
-      z-index: -1;
-      pointer-events: none;
-    }
-    .slider-bg-bottom {
-      position: fixed;
-      bottom: 40px; left: 0;
-      width: 100%;
-      z-index: -1;
-      pointer-events: none;
-    }
-    .slider {
-      width: 100%;
-      height: var(--height);
-      overflow: hidden;
-      mask-image: linear-gradient(to right, transparent, #000 10% 90%, transparent);
-      -webkit-mask-image: linear-gradient(to right, transparent, #000 10% 90%, transparent);
-    }
-    /* New approach: translate the whole list — all images visible immediately */
-    .slider .list {
-      display: flex;
-      gap: 12px;
-      width: max-content;           /* natural width of all items side by side */
-      animation: slideLeft 30s linear infinite;
-    }
-    .slider[reverse="true"] .list {
-      animation: slideRight 28s linear infinite;
-    }
-    .slider .list .item {
-      width: var(--width);
-      height: var(--height);
-      flex-shrink: 0;
-    }
-    .slider .list .item img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      border-radius: 8px;
-      /* Force browser to decode images immediately */
-      content-visibility: visible;
-    }
-    /* Slide the whole row left — duplicated items make it seamless */
-    @keyframes slideLeft {
-      0%   { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
-    }
-    @keyframes slideRight {
-      0%   { transform: translateX(-50%); }
-      100% { transform: translateX(0); }
-    }
-
-    /* page layout */
-    #page-content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 60px 20px 60px;
-    }
-
-    /* frosted glass card */
-    .search-card {
-      width: 700px;
-      max-width: 100%;
-      backdrop-filter: blur(30px);
-      -webkit-backdrop-filter: blur(30px);
-      background: rgba(24, 24, 24, 0.75);
-      border-radius: 30px;
-      padding: 40px 50px 36px;
-      animation: fadeUp 0.7s ease both;
-      text-align: center;
-    }
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(28px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .search-card h1 {
-      font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      color: orange;
-      font-weight: bold;
-      margin-bottom: 6px;
-      text-shadow: #000 0 0 13px;
-    }
-    .subtitle {
-      color: #ccc;
-      font-size: 13px;
-      margin-bottom: 28px;
-      letter-spacing: 0.5px;
-    }
-
-    /* input */
-    #autoComplete {
-      background-color: #ffffff !important;
-      background-image: none !important;
-      border: none !important;
-      border-radius: 8px !important;
-      padding: 10px 16px !important;
-      font-size: 15px !important;
-      color: #181818 !important;
-      width: 80% !important;
-      height: auto !important;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.25) !important;
-      outline: none !important;
-      transition: box-shadow 0.2s !important;
-      caret-color: #181818 !important;
-    }
-    #autoComplete:hover {
-      background-image: none !important;
-      background-color: #ffffff !important;
-      width: 80% !important;
-      height: auto !important;
-      color: #181818 !important;
-      padding: 10px 16px !important;
-    }
-    #autoComplete:focus {
-      background-image: none !important;
-      background-color: #ffffff !important;
-      width: 80% !important;
-      height: auto !important;
-      color: #181818 !important;
-      padding: 10px 16px !important;
-      box-shadow: 0 0 0 3px rgba(255,165,0,0.5) !important;
-    }
-    #autoComplete::placeholder { color: #888 !important; font-size: 15px !important; }
-
-    /* buttons */
-    .btn-row {
-      display: flex;
-      justify-content: center;
-      gap: 14px;
-      margin-top: 20px;
-    }
-    .btn-search {
-      background: transparent;
-      border: 2px solid red;
-      color: white;
-      border-radius: 8px;
-      padding: 10px 36px;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s, color 0.2s;
-    }
-    .btn-search:hover { background: red; color: #fff; }
-    .btn-search:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-together {
-      background: transparent;
-      border: 2px solid orange;
-      color: orange;
-      border-radius: 8px;
-      padding: 10px 28px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s, color 0.2s;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .btn-together:hover { background: orange; color: #181818; text-decoration: none; }
-
-    /* autocomplete dropdown */
-    #food_list { background: #fff; color: #181818; border-radius: 8px; z-index: 999; }
-
-    /* results & fail */
-    .fail {
-      display: none;
-      color: white;
-      text-align: center;
-      margin-top: 30px;
-      width: 100%;
-      max-width: 1200px;
-      padding: 30px 40px;
-      backdrop-filter: blur(30px);
-      -webkit-backdrop-filter: blur(30px);
-      background: rgba(24, 24, 24, 0.75);
-      border-radius: 30px;
-    }
-    .results {
-      width: 100%;
-      max-width: 1200px;
-      margin-top: 60px;
-      padding: 30px 40px 40px;
-      backdrop-filter: blur(30px);
-      -webkit-backdrop-filter: blur(30px);
-      background: rgba(24, 24, 24, 0.75);
-      border-radius: 30px;
-    }
-    .results:empty { display: none; }
-
-    /* footer */
-    .footer {
-      background-color: orange;
-      color: black;
-      text-align: center;
-      width: 100%;
-      padding: 10px 0;
-    }
-
-    /* ── Popcorn Search Loader ── */
-    #loader {
-      display: none;
-      position: fixed;
-      z-index: 9000;
-      left: 0; top: 0;
-      width: 100%; height: 100%;
-      background: rgba(18, 18, 18, 0.96);
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 24px;
-    }
-    #loader.active { display: flex; }
-
-    .popcorn-box {
-      width: 80px;
-      height: 70px;
-      background: linear-gradient(135deg, #e53935, #b71c1c);
-      border-radius: 0 0 18px 18px;
-      position: relative;
-      box-shadow: 0 6px 24px rgba(229,57,53,0.4);
-    }
-    .popcorn-box::before {
-      content: '';
-      position: absolute;
-      top: -10px; left: -6px;
-      width: calc(100% + 12px);
-      height: 22px;
-      background: #c62828;
-      border-radius: 6px;
-    }
-    .popcorn-box::after {
-      content: '';
-      position: absolute;
-      top: 12px; left: 0; right: 0;
-      height: 100%;
-      background: repeating-linear-gradient(
-        90deg,
-        transparent, transparent 10px,
-        rgba(255,255,255,0.12) 10px, rgba(255,255,255,0.12) 20px
-      );
-      border-radius: 0 0 18px 18px;
-    }
-    .kernels {
-      position: absolute;
-      top: -52px; left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 6px;
-    }
-    .kernel {
-      width: 18px; height: 18px;
-      border-radius: 50% 50% 40% 60%;
-      animation: popKernel 1.1s ease-in-out infinite;
-    }
-    .kernel:nth-child(1) { background: #fff9c4; animation-delay: 0s;    border-radius: 60% 40% 50% 50%; }
-    .kernel:nth-child(2) { background: #fff3e0; animation-delay: 0.18s; border-radius: 50% 60% 40% 50%; }
-    .kernel:nth-child(3) { background: #fff9c4; animation-delay: 0.36s; border-radius: 40% 50% 60% 40%; }
-    .kernel:nth-child(4) { background: #fff3e0; animation-delay: 0.54s; border-radius: 55% 45% 50% 50%; }
-    .kernel:nth-child(5) { background: #fff9c4; animation-delay: 0.72s; border-radius: 45% 55% 40% 60%; }
-
-    @keyframes popKernel {
-      0%   { transform: translateY(0)    scale(1);    opacity: 1; }
-      40%  { transform: translateY(-34px) scale(1.2); opacity: 1; }
-      70%  { transform: translateY(-28px) scale(1.1); opacity: 0.9; }
-      100% { transform: translateY(0)    scale(1);    opacity: 1; }
-    }
-    .loader-text {
-      color: #fff;
-      font-size: 15px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      animation: pulse 1.4s ease-in-out infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 0.5; }
-      50%       { opacity: 1; }
-    }
-
-    /* ── Watch Together Transition Overlay ── */
-    #watchTogetherOverlay {
-      display: none;
-      position: fixed;
-      z-index: 9500;
-      left: 0; top: 0;
-      width: 100%; height: 100%;
-      background: #181818;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 30px;
-    }
-    #watchTogetherOverlay.active { display: flex; }
-
-    .clapperboard {
-      width: 100px;
-      height: 80px;
-      background: #1a1a1a;
-      border: 3px solid #fff;
-      border-radius: 6px;
-      position: relative;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-    }
-    .clapper-top {
-      position: absolute;
-      top: -28px; left: -3px;
-      width: calc(100% + 6px);
-      height: 30px;
-      background: #222;
-      border: 3px solid #fff;
-      border-radius: 6px 6px 0 0;
-      overflow: hidden;
-      transform-origin: left top;
-      animation: clapperSnap 1.2s ease-in-out infinite;
-    }
-    .clapper-stripes {
-      display: flex;
-      height: 100%;
-    }
-    .clapper-stripes span {
-      flex: 1;
-      background: repeating-linear-gradient(
-        90deg,
-        #fff 0px, #fff 6px,
-        #111 6px, #111 12px
-      );
-    }
-    .clapper-body-lines {
-      padding: 10px 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 7px;
-    }
-    .clapper-body-lines div {
-      height: 4px;
-      background: rgba(255,255,255,0.15);
-      border-radius: 2px;
-    }
-    @keyframes clapperSnap {
-      0%   { transform: rotate(0deg); }
-      20%  { transform: rotate(-35deg); }
-      35%  { transform: rotate(0deg); }
-      100% { transform: rotate(0deg); }
-    }
-
-    .film-dots {
-      display: flex;
-      gap: 10px;
-    }
-    .film-dot {
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      background: orange;
-      animation: filmDot 1s ease-in-out infinite;
-    }
-    .film-dot:nth-child(1) { animation-delay: 0s; }
-    .film-dot:nth-child(2) { animation-delay: 0.15s; }
-    .film-dot:nth-child(3) { animation-delay: 0.30s; }
-    .film-dot:nth-child(4) { animation-delay: 0.45s; }
-    .film-dot:nth-child(5) { animation-delay: 0.60s; }
-    @keyframes filmDot {
-      0%, 100% { transform: scaleY(1);   opacity: 0.3; }
-      50%       { transform: scaleY(1.8); opacity: 1; }
-    }
-    .overlay-text {
-      color: orange;
-      font-size: 16px;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      font-weight: bold;
-    }
-
-    /* modals — always on top of everything */
-    .modal       { z-index: 9100 !important; }
-    .modal-backdrop { z-index: 9050 !important; }
-
-    @media (max-width: 750px) {
-      .search-card { padding: 28px 20px; }
-      #autoComplete,
-      #autoComplete:hover,
-      #autoComplete:focus { width: 100% !important; }
-    }
-  </style>
-
-  <!-- Preload all carousel images at highest priority -->
+  <!-- Preload carousel images at top priority so they appear immediately -->
   <link rel="preload" as="image" href="/static/img1.jpg">
   <link rel="preload" as="image" href="/static/img2.jpg">
   <link rel="preload" as="image" href="/static/img3.jpg">
@@ -426,91 +31,128 @@
   <link rel="preload" as="image" href="/static/img8.jpeg">
   <link rel="preload" as="image" href="/static/img9.jpeg">
   <link rel="preload" as="image" href="/static/img10.jpeg">
+
+  <!-- Flask injects the movie list here so autocomplete.js can use it -->
+  <script type="text/javascript"> var films = {{suggestions|tojson}}; </script>
 </head>
 
 <body>
 
-  <!-- SLIDER TOP — images duplicated for seamless loop, all visible immediately -->
+  <!-- =====================================================
+       BACKGROUND CAROUSEL — TOP ROW (slides left)
+       Images are duplicated so the loop is seamless.
+       loading="eager" forces immediate fetch — no lazy loading.
+       ===================================================== -->
   <div class="slider-bg">
     <div class="slider" style="--width:350px; --height:220px;">
       <div class="list">
-        <div class="item"><img src="/static/img1.jpg"    alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img2.jpg"    alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img3.jpg"    alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img4.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img5.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img6.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img7.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img8.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img9.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img10.jpeg"  alt="" loading="eager"></div>
-        <!-- duplicate set for seamless loop -->
-        <div class="item"><img src="/static/img1.jpg"    alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img2.jpg"    alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img3.jpg"    alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img4.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img5.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img6.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img7.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img8.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img9.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img10.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img1.jpg"   alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img2.jpg"   alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img3.jpg"   alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img4.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img5.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img6.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img7.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img8.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img9.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img10.jpeg" alt="" loading="eager"></div>
+        <!-- Duplicate set makes the CSS translateX loop seamless -->
+        <div class="item"><img src="/static/img1.jpg"   alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img2.jpg"   alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img3.jpg"   alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img4.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img5.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img6.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img7.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img8.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img9.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img10.jpeg" alt="" loading="eager"></div>
       </div>
     </div>
   </div>
 
-  <!-- SLIDER BOTTOM — reverse direction -->
+  <!-- =====================================================
+       BACKGROUND CAROUSEL — BOTTOM ROW (slides right)
+       reverse="true" triggers the opposite animation in CSS.
+       ===================================================== -->
   <div class="slider-bg-bottom">
     <div class="slider" reverse="true" style="--width:350px; --height:220px;">
       <div class="list">
-        <div class="item"><img src="/static/img6.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img7.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img8.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img9.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img10.jpeg"  alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img1.jpg"    alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img2.jpg"    alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img3.jpg"    alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img4.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img5.jpeg"   alt="" loading="eager"></div>
-        <!-- duplicate set -->
-        <div class="item"><img src="/static/img6.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img7.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img8.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img9.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img10.jpeg"  alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img1.jpg"    alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img2.jpg"    alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img3.jpg"    alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img4.jpeg"   alt="" loading="eager"></div>
-        <div class="item"><img src="/static/img5.jpeg"   alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img6.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img7.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img8.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img9.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img10.jpeg" alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img1.jpg"   alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img2.jpg"   alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img3.jpg"   alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img4.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img5.jpeg"  alt="" loading="eager"></div>
+        <!-- Duplicate set -->
+        <div class="item"><img src="/static/img6.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img7.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img8.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img9.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img10.jpeg" alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img1.jpg"   alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img2.jpg"   alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img3.jpg"   alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img4.jpeg"  alt="" loading="eager"></div>
+        <div class="item"><img src="/static/img5.jpeg"  alt="" loading="eager"></div>
       </div>
     </div>
   </div>
 
-  <!-- MAIN CONTENT -->
+
+  <!-- =====================================================
+       MAIN PAGE CONTENT
+       The search card is centred on screen. The fail message
+       and results box below it start hidden.
+       ===================================================== -->
   <div id="page-content">
+
+    <!-- Frosted glass search card -->
     <div class="search-card">
       <h1>PoPCorn Picker</h1>
       <p class="subtitle">Find your perfect movie 🍿</p>
-      <input type="text" name="movie" class="movie" id="autoComplete"
-             autocomplete="off" placeholder="Enter the Movie Name" required />
+
+      <!-- autocomplete.js hooks into this input using id="autoComplete" -->
+      <input
+        type="text"
+        name="movie"
+        class="movie"
+        id="autoComplete"
+        autocomplete="off"
+        placeholder="Enter the Movie Name"
+        required
+      />
+
       <div class="btn-row">
+        <!-- Disabled until the user types something — enabled by recommend.js -->
         <button class="btn-search movie-button" disabled>Search</button>
+        <!-- Clicking this plays the clapperboard overlay then goes to /dual -->
         <a href="/dual" class="btn-together">Watch Together 🎬</a>
       </div>
     </div>
 
+    <!-- Shown when the movie is not found in our database -->
     <div class="fail">
       <h3>Sorry! We couldn't find that movie. Please try a different one.</h3>
     </div>
 
+    <!-- recommend.js injects the rendered recommend.html here after a search -->
     <div class="results">
       <center><h2 id="name" class="text-uppercase" style="color:white;"></h2></center>
     </div>
-  </div>
 
-  <!-- POPCORN SEARCH LOADER -->
+  </div><!-- /#page-content -->
+
+
+  <!-- =====================================================
+       POPCORN SEARCH LOADER
+       Covers the whole screen while Flask is fetching data.
+       recommend.js toggles the "active" class to show/hide it.
+       ===================================================== -->
   <div id="loader">
     <div class="popcorn-box">
       <div class="kernels">
@@ -524,14 +166,21 @@
     <div class="loader-text">Finding your movie…</div>
   </div>
 
-  <!-- WATCH TOGETHER TRANSITION OVERLAY -->
+
+  <!-- =====================================================
+       WATCH TOGETHER TRANSITION OVERLAY
+       Shows a snapping clapperboard animation before navigating
+       to the /dual page when "Watch Together" is clicked.
+       ===================================================== -->
   <div id="watchTogetherOverlay">
     <div class="clapperboard">
       <div class="clapper-top">
         <div class="clapper-stripes"><span></span></div>
       </div>
       <div class="clapper-body-lines">
-        <div></div><div></div><div></div>
+        <div></div>
+        <div></div>
+        <div></div>
       </div>
     </div>
     <div class="film-dots">
@@ -543,25 +192,44 @@
     </div>
     <div class="overlay-text">Watch Together 🎬</div>
   </div>
+
+
+  <!-- Footer -->
   <div class="footer">© 2026, Made By Sanjana Nakum</div>
 
+
+  <!-- =====================================================
+       JAVASCRIPT
+       Loaded at the bottom so the DOM is fully parsed first.
+       ===================================================== -->
+
+  <!-- jQuery must come before Bootstrap and our own scripts -->
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+
+  <!-- AutoComplete dropdown library -->
   <script src="https://cdn.jsdelivr.net/npm/@tarekraafat/autocomplete.js@7.2.0/dist/js/autoComplete.min.js"></script>
+
+  <!-- Our own JS files (served from Flask's /static folder) -->
   <script type="text/javascript" src="/static/autocomplete.js"></script>
   <script type="text/javascript" src="/static/recommend.js"></script>
 
   <script>
-    // Watch Together button — show clapperboard overlay then navigate
+    // Show the clapperboard overlay for 1.2s before navigating to /dual
+    // so the transition feels intentional rather than a plain page jump
     document.querySelector('.btn-together').addEventListener('click', function(e) {
       e.preventDefault();
-      const overlay = document.getElementById('watchTogetherOverlay');
-      overlay.classList.add('active');
+      document.getElementById('watchTogetherOverlay').classList.add('active');
       setTimeout(() => { window.location.href = this.href; }, 1200);
     });
-  </script>
 
+    // After AJAX injects recommend.html into .results, move all Bootstrap modals
+    // up to <body> so their backdrop doesn't get trapped in the stacking context
+    $(document).ajaxComplete(function() {
+      $('.results .modal').each(function() { $(this).appendTo('body'); });
+    });
+  </script>
 
 </body>
 </html>
