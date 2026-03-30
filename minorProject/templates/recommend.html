@@ -455,9 +455,14 @@
 		<div class="unreleased">🎬 This movie hasn't released yet or reviews are unavailable.</div>
 		{% endif %}
 	</div>
-	<div class="trailer">
-		
-	</div>
+	{% if trailer_id %}
+  <h3>Trailer 🎬</h3>
+  <iframe width="100%" height="400"
+          src="https://www.youtube.com/embed/{{ trailer_id }}"
+          frameborder="0"
+          allowfullscreen>
+  </iframe>
+{% endif %}
 	<!-- RECOMMENDED MOVIES -->
 	{% if movie_cards|length > 1 %}
 	<div class="glass-section">

@@ -28,6 +28,8 @@ function recommendcard(el) {
   load_details(el.getAttribute('title'));
 }
 
+
+
 // ── Main search — single call to Flask /search ────────────────
 function load_details(title) {
   showLoader();
