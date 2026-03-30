@@ -425,6 +425,22 @@
 	</div>
 	{% endif %}
 
+	<!-- Trailer -->
+	 {% if trailer_id %}
+	<div class="glass-section">
+		<div class="section-title">Official Trailer</div>
+		<div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:16px;">
+			<iframe
+				src="https://www.youtube.com/embed/{{trailer_id}}?rel=0&modestbranding=1"
+				style="position:absolute; top:0; left:0; width:100%; height:100%; border:none; border-radius:16px;"
+				allowfullscreen
+				loading="lazy"
+				title="{{title}} Official Trailer">
+			</iframe>
+		</div>
+	</div>
+	{% endif %}
+
 	<!-- USER REVIEWS -->
 	<div class="glass-section">
 		<div class="section-title">User Reviews</div>
@@ -455,20 +471,7 @@
 		<div class="unreleased">🎬 This movie hasn't released yet or reviews are unavailable.</div>
 		{% endif %}
 	</div>
-	{% if trailer_id %}
-	<div class="glass-section">
-		<div class="section-title">Official Trailer</div>
-		<div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:16px;">
-			<iframe
-				src="https://www.youtube.com/embed/{{trailer_id}}?rel=0&modestbranding=1"
-				style="position:absolute; top:0; left:0; width:100%; height:100%; border:none; border-radius:16px;"
-				allowfullscreen
-				loading="lazy"
-				title="{{title}} Official Trailer">
-			</iframe>
-		</div>
-	</div>
-	{% endif %}
+	
 	<!-- RECOMMENDED MOVIES -->
 	{% if movie_cards|length > 1 %}
 	<div class="glass-section">
