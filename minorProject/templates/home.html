@@ -38,11 +38,7 @@
 
 <body>
 
-  <!-- =====================================================
-       BACKGROUND CAROUSEL — TOP ROW (slides left)
-       Images are duplicated so the loop is seamless.
-       loading="eager" forces immediate fetch — no lazy loading.
-       ===================================================== -->
+  <!-- BACKGROUND CAROUSEL — TOP ROW-->
   <div class="slider-bg">
     <div class="slider" style="--width:350px; --height:220px;">
       <div class="list">
@@ -71,10 +67,7 @@
     </div>
   </div>
 
-  <!-- =====================================================
-       BACKGROUND CAROUSEL — BOTTOM ROW (slides right)
-       reverse="true" triggers the opposite animation in CSS.
-       ===================================================== -->
+  <!-- BACKGROUND CAROUSEL -->
   <div class="slider-bg-bottom">
     <div class="slider" reverse="true" style="--width:350px; --height:220px;">
       <div class="list">
@@ -104,11 +97,8 @@
   </div>
 
 
-  <!-- =====================================================
-       MAIN PAGE CONTENT
-       The search card is centred on screen. The fail message
-       and results box below it start hidden.
-       ===================================================== -->
+  <!--
+       MAIN PAGE CONTENT -->
   <div id="page-content">
 
     <!-- Frosted glass search card -->
@@ -148,11 +138,7 @@
   </div><!-- /#page-content -->
 
 
-  <!-- =====================================================
-       POPCORN SEARCH LOADER
-       Covers the whole screen while Flask is fetching data.
-       recommend.js toggles the "active" class to show/hide it.
-       ===================================================== -->
+  <!-- POPcorn loading animation -->
   <div id="loader">
     <div class="popcorn-box">
       <div class="kernels">
@@ -167,11 +153,8 @@
   </div>
 
 
-  <!-- =====================================================
-       WATCH TOGETHER TRANSITION OVERLAY
-       Shows a snapping clapperboard animation before navigating
-       to the /dual page when "Watch Together" is clicked.
-       ===================================================== -->
+  <!--
+       WATCH TOGETHER ANIMATION-->
   <div id="watchTogetherOverlay">
     <div class="clapperboard">
       <div class="clapper-top">
@@ -197,11 +180,6 @@
   <!-- Footer -->
   <div class="footer">© 2026, Made By Sanjana Nakum</div>
 
-
-  <!-- =====================================================
-       JAVASCRIPT
-       Loaded at the bottom so the DOM is fully parsed first.
-       ===================================================== -->
 
   <!-- jQuery must come before Bootstrap and our own scripts -->
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>

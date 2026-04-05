@@ -9,40 +9,44 @@ from concurrent.futures import ThreadPoolExecutor
 import threading
 import re
 
-# ── Cloudscraper (optional, for IMDB reviews) ─────────────────
+# ── Cloudscraper (optional, used only if available to bypass some scraping restrictions) ─────────────────
 try:
     import cloudscraper
+    # Create a scraper that behaves like a normal browser
     _scraper = cloudscraper.create_scraper(
         browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True}
     )
     USE_CLOUDSCRAPER = True
 except ImportError:
+    # If not installed, just skip it and fall back to normal requests
     USE_CLOUDSCRAPER = False
 
-# ── NLP model ─────────────────────────────────────────────────
+# ── Load trained NLP model and vectorizer (used for review sentiment classification) ─────────────────
 clf        = pickle.load(open('nlp_model.pkl', 'rb'))
 vectorizer = pickle.load(open('tranform.pkl', 'rb'))
 
-# ── API Keys ──────────────────────────────────────────────────
-OMDB_KEY    = '9e1d1948'  # ⚠️ Get your own FREE key at https://www.omdbapi.com/apikey.aspx (1000 req/day free)
-TMDB_KEY    = 'e7d0426c5b557ced5863b495eea3ffc5'  # for cast images only (browser fetches these)
+# ── API Keys (these power movie data + images) ──────────────────────────────────────────────────
+OMDB_KEY    = '9e1d1948'  # Free OMDb API (limited requests per day)
+TMDB_KEY    = 'e7d0426c5b557ced5863b495eea3ffc5'  # Used mainly for cast details/images
 IMG_BASE    = 'https://image.tmdb.org/t/p/original'
-PLACEHOLDER = 'https://via.placeholder.com/300x450?text=No+Poster'
+PLACEHOLDER = 'https://via.placeholder.com/300x450?text=No+Poster'  # Fallback if no poster found
 
-# ── HTTP session ──────────────────────────────────────────────
+# ── Shared HTTP session (reuses connections, faster than creating new ones every time) ─────────────────
 _session = req.Session()
 _session.headers.update({'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json'})
 
-# ── Similarity matrix — built once, kept in memory ────────────
+# ── Similarity matrix cache (expensive to compute, so we store it once and reuse) ────────────
 _sim_lock  = threading.Lock()
 _sim_cache = {}
 
 def get_similarity():
+    # Thread-safe loading so multiple requests don’t rebuild the matrix
     with _sim_lock:
         if not _sim_cache:
             print("[Boot] Building similarity matrix…")
             data   = pd.read_csv('main_data.csv')
             cv     = CountVectorizer()
+            # Convert text into vectors and compute similarity between all movies
             matrix = cosine_similarity(cv.fit_transform(data['comb']))
             _sim_cache['data']   = data
             _sim_cache['matrix'] = matrix
@@ -50,10 +54,11 @@ def get_similarity():
         return _sim_cache['data'], _sim_cache['matrix']
 
 def get_suggestions():
+    # Used for autocomplete suggestions on frontend
     data, _ = get_similarity()
     return list(data['movie_title'].str.capitalize())
 
-# ── OMDb (works in India, no VPN) ────────────────────────────
+# ── OMDb API helpers (main movie info source, works without VPN in India) ────────────────────────────
 def omdb_get(params):
     try:
         params['apikey'] = OMDB_KEY
@@ -67,31 +72,35 @@ def omdb_get(params):
     return {}
 
 def omdb_search(title):
+    # Fetch full movie details using title
     return omdb_get({'t': title, 'plot': 'full', 'type': 'movie'})
 
 def fetch_rec_poster(title):
+    # Get poster for recommended movies
     d = omdb_search(title)
     p = d.get('Poster', '')
     return p if (p and p != 'N/A') else PLACEHOLDER
 
 def parse_runtime(rt):
+    # Convert runtime like "142 min" → "2 hour(s) 22 min(s)"
     try:
         mins = int(re.sub(r'[^\d]', '', rt))
         return f"{mins//60} hour(s) {mins%60} min(s)" if mins % 60 else f"{mins//60} hour(s)"
     except Exception:
-        return rt
+        return rt  # fallback if parsing fails
 
-# ── TMDB — only for cast (blocked in India — skipped to keep response fast) ──
+# ── TMDB helpers (used mainly for cast + reviews, might be blocked without VPN) ──
 TMDB_BASES = ['https://api.themoviedb.org/3', 'https://api.tmdb.org/3']
 
 def tmdb_get(path, extra=None):
+    # Try multiple base URLs in case one fails
     params = {'api_key': TMDB_KEY}
     if extra:
         params.update(extra)
     for base in TMDB_BASES:
         try:
             fetch = _scraper.get if USE_CLOUDSCRAPER else _session.get
-            r = fetch(f'{base}{path}', params=params, timeout=2)  # 2s max — fail fast
+            r = fetch(f'{base}{path}', params=params, timeout=2)  # short timeout to avoid delays
             if r.status_code == 200:
                 return r.json()
         except Exception:
@@ -99,7 +108,7 @@ def tmdb_get(path, extra=None):
     return {}
 
 def fetch_trailer(title, year=''):
-    """Search YouTube for official trailer — no API key needed."""
+    # Scrapes YouTube search results to extract trailer video ID (no API key needed)
     try:
         from urllib.parse import quote
         query = f"{title} {year} official trailer"
@@ -115,9 +124,8 @@ def fetch_trailer(title, year=''):
 
 def fetch_tmdb_data(movie_title):
     """
-    Single TMDB search → gets movie_id → fetches cast, bios, AND reviews in parallel.
-    Returns (casts, cast_details, reviews).
-    If TMDB is blocked (India without VPN), returns empty dicts instantly.
+    Fetch cast, cast bios, and reviews for a movie using TMDB.
+    Uses parallel requests to keep things fast.
     """
     try:
         d       = tmdb_get('/search/movie', {'query': movie_title})
@@ -127,7 +135,7 @@ def fetch_tmdb_data(movie_title):
 
         movie_id = results[0]['id']
 
-        # Fire credits + reviews in parallel — single TMDB search, two endpoints
+        # Fetch credits and reviews in parallel
         with ThreadPoolExecutor(max_workers=2) as ex:
             f_credits = ex.submit(tmdb_get, f'/movie/{movie_id}/credits')
             f_reviews = ex.submit(tmdb_get, f'/movie/{movie_id}/reviews')
@@ -136,7 +144,7 @@ def fetch_tmdb_data(movie_title):
 
         cast_list = credits_data.get('cast', [])[:10]
 
-        # Fetch all cast bios in parallel
+        # Fetch additional details for each cast member
         def get_bio(person_id):
             p = tmdb_get(f'/person/{person_id}')
             bday = p.get('birthday') or ''
@@ -148,11 +156,12 @@ def fetch_tmdb_data(movie_title):
 
         bios = {}
         if cast_list:
+            # Parallel fetch for all cast bios
             with ThreadPoolExecutor(max_workers=10) as ex:
                 bio_futures = {ex.submit(get_bio, c['id']): i for i, c in enumerate(cast_list)}
                 bios = {idx: f.result() for f, idx in bio_futures.items()}
 
-        # Build cast dicts
+        # Build structured cast data
         casts, cast_details = {}, {}
         for i, c in enumerate(cast_list):
             name    = c['name']
@@ -162,7 +171,7 @@ def fetch_tmdb_data(movie_title):
             casts[name]        = [str(c['id']), char, profile]
             cast_details[name] = [str(c['id']), profile, b.get('bday','N/A'), b.get('place','N/A'), b.get('bio','')]
 
-        # Build reviews dict — TMDB reviews API (no scraping, no Cloudflare)
+        # Process reviews and classify sentiment using ML model
         reviews = {}
         for r in reviews_data.get('results', [])[:10]:
             text = r.get('content', '').strip()
@@ -177,7 +186,7 @@ def fetch_tmdb_data(movie_title):
         print(f"[TMDB fetch] failed: {e}")
         return {}, {}, {}
 
-# ── ML recommendations ────────────────────────────────────────
+# ── Recommendation logic using cosine similarity ────────────────────────────────────────
 def rcmd(m):
     data, sim = get_similarity()
     m = m.lower()
@@ -188,6 +197,7 @@ def rcmd(m):
     return [data['movie_title'][a] for a, _ in lst]
 
 def dual_rcmd(m1, m2):
+    # Combine recommendations from two movies
     data, sim = get_similarity()
     m1, m2    = m1.lower(), m2.lower()
     if m1 not in data['movie_title'].values or m2 not in data['movie_title'].values:
@@ -195,6 +205,7 @@ def dual_rcmd(m1, m2):
     i1, i2   = data[data['movie_title']==m1].index[0], data[data['movie_title']==m2].index[0]
     s1, s2   = sim[i1], sim[i2]
     combined = (s1 + s2) / 2
+
     lst = sorted(enumerate(combined), key=lambda x: (-x[1], abs(s1[x[0]]-s2[x[0]])))
     result, used = [], set()
     for idx, _ in lst:
@@ -206,29 +217,29 @@ def dual_rcmd(m1, m2):
         if len(result) == 10: break
     return result
 
-# ── Core builder ──────────────────────────────────────────────
+# ── Main data builder (ties everything together) ──────────────────────────────
 def build_movie_data(title):
     data, _ = get_similarity()
 
-    # Step 1: find the movie title in CSV (lowercase match)
+    # Normalize input
     title_lower = title.lower().strip()
     matched_title = None
 
-    # Exact match first
+    # Try exact match first
     if title_lower in data['movie_title'].values:
         matched_title = title_lower
     else:
-        # Partial / fuzzy match — find closest title in CSV
+        # If not exact, try partial match
         matches = data[data['movie_title'].str.contains(title_lower, case=False, na=False)]
         if not matches.empty:
             matched_title = matches.iloc[0]['movie_title']
 
-    # Step 2: get recommendations from CSV (works 100% offline)
+    # Get recommendations
     rec_list = []
     if matched_title:
         rec_list = rcmd(matched_title) or []
 
-    # Step 3: try OMDb for poster/details — gracefully degrade if it fails
+    # Fetch movie details
     display_title = matched_title.title() if matched_title else title
     movie_data = omdb_search(display_title) or omdb_search(title) or {}
 
@@ -238,11 +249,11 @@ def build_movie_data(title):
 
     imdb_id = movie_data.get('imdbID', '')
 
-    # If OMDb failed entirely but we found the movie in CSV, still proceed
+    # If nothing found at all
     if not movie_data and not matched_title:
         return None
 
-    # Step 4: fetch rec posters + TMDB data (cast, bios, reviews) + trailer in parallel
+    # Parallel fetching (posters, cast, trailer)
     with ThreadPoolExecutor(max_workers=20) as ex:
         f_posters  = {ex.submit(fetch_rec_poster, m): m for m in rec_list}
         f_tmdb     = ex.submit(fetch_tmdb_data, display_title)
@@ -257,6 +268,7 @@ def build_movie_data(title):
 
     movie_cards = {rec_posters_map.get(m, PLACEHOLDER): m for m in rec_list}
 
+    # Final structured response sent to frontend
     return {
         'title':        movie_data.get('Title', display_title),
         'poster':       poster_url,
@@ -274,10 +286,10 @@ def build_movie_data(title):
         'trailer_id':   trailer_id,
     }
 
-# ── Flask ─────────────────────────────────────────────────────
+# ── Flask app setup ─────────────────────────────────────────────────────
 app = Flask(__name__)
 
-# Warm up similarity matrix on startup (Flask 2.3+ compatible)
+# Preload similarity matrix in background so first request isn’t slow
 with app.app_context():
     threading.Thread(target=get_similarity, daemon=True).start()
 
@@ -313,4 +325,5 @@ def poster():
     return jsonify({'poster': fetch_rec_poster(title)})
 
 if __name__ == '__main__':
+    # Debug mode on for development (don’t use in production unless you enjoy chaos)
     app.run(debug=True)
